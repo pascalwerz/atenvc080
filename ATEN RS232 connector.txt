@@ -1,0 +1,15 @@
+4 contacts  signal  female
+jack 3.5mm   name    RJ45
+     _
+    / \
+    \ / ---- RxD ---- 3
+    | | ---- RTS ---- 8
+    | | ---- TxD ---- 6
+    | | ---- GND ---- 4 and 5
+   -+-+-
+   |   |
+   |   |
+   |   |
+   \___/
+    | |
+   cable
