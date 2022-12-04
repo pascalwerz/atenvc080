@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		506285E0293B3DA900262C24 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 506285DF293B3DA900262C24 /* main.c */; };
+		506285EA293B3DD300262C24 /* mac.c in Sources */ = {isa = PBXBuildFile; fileRef = 506285E8293B3DD300262C24 /* mac.c */; };
+		506285EB293B3DD300262C24 /* aten.c in Sources */ = {isa = PBXBuildFile; fileRef = 506285E9293B3DD300262C24 /* aten.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +27,10 @@
 /* Begin PBXFileReference section */
 		506285DC293B3DA900262C24 /* atenvc080 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = atenvc080; sourceTree = BUILT_PRODUCTS_DIR; };
 		506285DF293B3DA900262C24 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		506285E6293B3DD200262C24 /* mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mac.h; sourceTree = "<group>"; };
+		506285E7293B3DD200262C24 /* aten.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aten.h; sourceTree = "<group>"; };
+		506285E8293B3DD300262C24 /* mac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mac.c; sourceTree = "<group>"; };
+		506285E9293B3DD300262C24 /* aten.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = aten.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +64,10 @@
 			isa = PBXGroup;
 			children = (
 				506285DF293B3DA900262C24 /* main.c */,
+				506285E6293B3DD200262C24 /* mac.h */,
+				506285E8293B3DD300262C24 /* mac.c */,
+				506285E7293B3DD200262C24 /* aten.h */,
+				506285E9293B3DD300262C24 /* aten.c */,
 			);
 			path = atenvc080;
 			sourceTree = "<group>";
@@ -119,7 +129,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				506285EB293B3DD300262C24 /* aten.c in Sources */,
 				506285E0293B3DA900262C24 /* main.c in Sources */,
+				506285EA293B3DD300262C24 /* mac.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +253,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FS55BUWBSV;
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -251,6 +264,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FS55BUWBSV;
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
