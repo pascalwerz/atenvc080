@@ -38,18 +38,18 @@ typedef enum
 int edidVerifyChecksum(uint8_t edid[ATEN_MAX_EDID_SIZE]);
 int edidIsValid(uint8_t edid[ATEN_MAX_EDID_SIZE]);
 
-int atenPosition(int serialDescriptor, aten_set_id setID);
-int atenGetExtensionData(int serialDescriptor, int extension, uint8_t edid[ATEN_MAX_EDID_SIZE]);
-int atenReadEDIDFromDisplay(int serialDescriptor, uint8_t edid[ATEN_MAX_EDID_SIZE]);
-int atenCECConnect(int serialDescriptor);
-int atenCECDisconnect(int serialDescriptor);
-int atenWriteEDID(int serialDescriptor, uint8_t edid[ATEN_MAX_EDID_SIZE]);
-int atenDeviceAttached(int serialDescriptor);       // returns -1 on error
-int atenReadEDIDFromDevice(int serialDescriptor, uint8_t edid[ATEN_MAX_EDID_SIZE]);
+int atenPosition(int serialDevice, aten_set_id setID);
+int atenGetExtensionData(int serialDevice, int extension, uint8_t edid[ATEN_MAX_EDID_SIZE]);
+int atenReadEDIDFromDisplay(int serialDevice, uint8_t edid[ATEN_MAX_EDID_SIZE]);
+int atenCECConnect(int serialDevice);
+int atenCECDisconnect(int serialDevice);
+int atenWriteEDID(int serialDevice, uint8_t edid[ATEN_MAX_EDID_SIZE]);
+int atenDeviceAttached(int serialDevice);       // returns -1 on error
+int atenReadEDIDFromDevice(int serialDevice, uint8_t edid[ATEN_MAX_EDID_SIZE]);
 
 int atenReadEDIDFromFile(uint8_t edid[ATEN_MAX_EDID_SIZE], char * path);
 int atenWriteEDIDToFile(uint8_t edid[ATEN_MAX_EDID_SIZE], char * path);
 
-int atenUpdateFirmware(int serialDescriptor, uint8_t part1[ATEN_FIRMWARE_SIZE_1], uint8_t part2[ATEN_FIRMWARE_SIZE_2]);
+int atenUpdateFirmware(int serialDevice, uint8_t data[ATEN_FIRMWARE_SIZE_1], size_t length);
 
 #endif /* aten_h */

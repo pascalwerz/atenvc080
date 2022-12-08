@@ -3,7 +3,7 @@
 //  atenvc080
 //
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 #include "mac.h"
 #include "aten.h"
@@ -17,13 +17,13 @@
 
 
 void usage(void);
-void connectToDevice(serial_t *serialDescriptor, char * path);
-void checkSerialDevice(serial_t serialDescriptor);
-void printInquiry(serial_t serialDescriptor);
-void selectSet(serial_t serialDescriptor, int *currentPosition, char * name);
-void writeEDIDToDevice(serial_t serialDescriptor, int currentPosition, char * path);
-void writeEDIDToFile(serial_t serialDescriptor, int currentPosition, char * path);
-void firmwareUpdate(serial_t serialDescriptor, char * path);
+void connectToDevice(serial_t *serialDevice, char * path, struct termios * previousSettings);
+void checkSerialDevice(serial_t serialDevice);
+void printInquiry(serial_t serialDevice);
+void selectSet(serial_t serialDevice, int *currentPosition, char * name);
+void writeEDIDToDevice(serial_t serialDevice, int currentPosition, char * path);
+void writeEDIDToFile(serial_t serialDevice, int currentPosition, char * path);
+void firmwareUpdate(serial_t serialDevice, char * path);
 
 
 
@@ -59,9 +59,9 @@ void usage(void)
 
 
 
-void checkSerialDevice(serial_t serialDescriptor)
+void checkSerialDevice(serial_t serialDevice)
 {
-    if (serialDescriptor < 0)
+    if (serialDevice < 0)
     {
         printf("serial device not open.\n");
         exit(1);
@@ -70,11 +70,11 @@ void checkSerialDevice(serial_t serialDescriptor)
 
 
 
-void printInquiry(serial_t serialDescriptor)
+void printInquiry(serial_t serialDevice)
 {
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
-    int byte = atenDeviceAttached(serialDescriptor);
+    int byte = atenDeviceAttached(serialDevice);
     if (byte < 0)
         printf("device didn't reply to identification request\n");
     else
@@ -89,9 +89,9 @@ void printInquiry(serial_t serialDescriptor)
 
 
 
-void selectSet(serial_t serialDescriptor, int *currentPosition, char * name)
+void selectSet(serial_t serialDevice, int *currentPosition, char * name)
 {
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
     if (strcmp(name, "default") == 0)      *currentPosition = ATEN_SET_DEFAULT;
     else if (strcmp(name, "DEFAULT") == 0) *currentPosition = ATEN_SET_DEFAULT;
@@ -109,19 +109,19 @@ void selectSet(serial_t serialDescriptor, int *currentPosition, char * name)
     switch(*currentPosition)
     {
     case ATEN_SET_DEFAULT:
-        atenPosition(serialDescriptor, *currentPosition);       // dismiss errors
+        atenPosition(serialDevice, *currentPosition);       // dismiss errors
         printf("switched to DEFAULT\n");
         break;
     case ATEN_SET_1:
-        atenPosition(serialDescriptor, *currentPosition);       // dismiss errors
+        atenPosition(serialDevice, *currentPosition);       // dismiss errors
         printf("switched to SET 1\n");
         break;
     case ATEN_SET_2:
-        atenPosition(serialDescriptor, *currentPosition);       // dismiss errors
+        atenPosition(serialDevice, *currentPosition);       // dismiss errors
         printf("switched to SET 2\n");
         break;
     case ATEN_SET_3:
-        atenPosition(serialDescriptor, *currentPosition);       // dismiss errors
+        atenPosition(serialDevice, *currentPosition);       // dismiss errors
         printf("switched to SET 3\n");
         break;
     case ATEN_SET_DISPLAY:
@@ -132,30 +132,30 @@ void selectSet(serial_t serialDescriptor, int *currentPosition, char * name)
 
 
 
-void CECConnect(serial_t serialDescriptor)
+void CECConnect(serial_t serialDevice)
 {
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
-    atenCECConnect(serialDescriptor);
+    atenCECConnect(serialDevice);
 }
 
 
 
-void CECDisconnect(serial_t serialDescriptor)
+void CECDisconnect(serial_t serialDevice)
 {
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
-    atenCECDisconnect(serialDescriptor);
+    atenCECDisconnect(serialDevice);
 }
 
 
 
-void writeEDIDToDevice(serial_t serialDescriptor, int currentPosition, char * path)
+void writeEDIDToDevice(serial_t serialDevice, int currentPosition, char * path)
 {
     uint8_t edid[ATEN_MAX_EDID_SIZE];
 
 
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
     if (currentPosition == ATEN_SET_DISPLAY)
     {
@@ -165,6 +165,7 @@ void writeEDIDToDevice(serial_t serialDescriptor, int currentPosition, char * pa
 
     if (currentPosition == ATEN_SET_DEFAULT)
     {
+        // ATEN EDID Wizard does not allow this, so don't do it either, although DEFAULT is just a normal writable set
         printf("can't write DEFAULT set\n");
         exit(1);
     }
@@ -176,7 +177,7 @@ void writeEDIDToDevice(serial_t serialDescriptor, int currentPosition, char * pa
     }
 
     printf("writing...\n");
-    if (atenWriteEDID(serialDescriptor, edid) != 0)
+    if (atenWriteEDID(serialDevice, edid) != 0)
     {
         printf("write failed\n");
         exit(1);
@@ -201,19 +202,19 @@ void writeEDIDToDevice(serial_t serialDescriptor, int currentPosition, char * pa
 
 
 
-void writeEDIDToFile(serial_t serialDescriptor, int currentPosition, char * path)
+void writeEDIDToFile(serial_t serialDevice, int currentPosition, char * path)
 {
     int status;
     uint8_t edid[ATEN_MAX_EDID_SIZE];
 
 
-    checkSerialDevice(serialDescriptor);
+    checkSerialDevice(serialDevice);
 
     printf("reading...\n");
     if (currentPosition != ATEN_SET_DISPLAY)
-        status = atenReadEDIDFromDevice(serialDescriptor, edid);
+        status = atenReadEDIDFromDevice(serialDevice, edid);
     else
-        status = atenReadEDIDFromDisplay(serialDescriptor, edid);
+        status = atenReadEDIDFromDisplay(serialDevice, edid);
 
     if (status != ATEN_NO_ERROR)
     {
@@ -237,24 +238,31 @@ void writeEDIDToFile(serial_t serialDescriptor, int currentPosition, char * path
 
 
 
-void connectToDevice(int *serialDescriptor, char * path)
+void connectToDevice(int *serialDevice, char * path, struct termios * previousSettings)
 {
-    if (serialOpenPort(serialDescriptor, optarg) != serialOK)
+    if (serialOpenPort(serialDevice, optarg, previousSettings) != serialOK)
     {
         perror(optarg);
         exit(1);
     }
+    if (serialSetRate(*serialDevice, 115200, 115200) != serialOK || serialSetRTS(*serialDevice, 0) != serialOK)
+    {
+        printf("Can't initialize serial port\n");
+        exit(1);
+    }
+    pauseMilliseconds(100);
+    serialClearPendingBytes(*serialDevice);      // purge serial input buffer, dismiss errors
+
     printf("Connected using '%s'\n", path);
 }
 
 
 
-void firmwareUpdate(serial_t serialDescriptor, char * path)
+void firmwareUpdate(serial_t serialDevice, char * path)
 {
     int fileDescriptor;
     size_t byteCount;
-    uint8_t part1[ATEN_FIRMWARE_SIZE_1];
-    uint8_t part2[ATEN_FIRMWARE_SIZE_2];
+    uint8_t data[ATEN_FIRMWARE_SIZE_1 + ATEN_FIRMWARE_SIZE_2 + 2];
 
 
     fileDescriptor = open(path, O_RDONLY);
@@ -264,24 +272,16 @@ void firmwareUpdate(serial_t serialDescriptor, char * path)
         exit(1);
     }
 
-    byteCount = read(fileDescriptor, part1, ATEN_FIRMWARE_SIZE_1);
-    if (byteCount != ATEN_FIRMWARE_SIZE_1)
+    byteCount = read(fileDescriptor, data, ATEN_FIRMWARE_SIZE_1 + ATEN_FIRMWARE_SIZE_2 + 2);
+    if (byteCount != ATEN_FIRMWARE_SIZE_1 + ATEN_FIRMWARE_SIZE_2 + 2)
     {
         perror(path);
         close(fileDescriptor);
         exit(1);
     }
 
-    byteCount = read(fileDescriptor, part2, ATEN_FIRMWARE_SIZE_2);
-    close(fileDescriptor);
-    if (byteCount != ATEN_FIRMWARE_SIZE_2)
-    {
-        perror(path);
-        exit(1);
-    }
-
     printf("Updating firmware...\n");
-    int status = atenUpdateFirmware(serialDescriptor, part1, part2);
+    int status = atenUpdateFirmware(serialDevice, data, byteCount);
     switch (status)
     {
     case ATEN_NO_ERROR:
@@ -304,10 +304,10 @@ void firmwareUpdate(serial_t serialDescriptor, char * path)
 
 int main(int argc, char * const argv[])
 {
-    serial_t serialDescriptor = serialClosed;
+    serial_t serialDevice = serialClosed;
     int currentPosition = ATEN_SET_DISPLAY;
     int character;
-
+    serialSettings_t previousSettings;
 
     printf("atenvc080 v%s\n", VERSION);
 
@@ -316,28 +316,28 @@ int main(int argc, char * const argv[])
         switch(character)
         {
         case 'C':
-            CECConnect(serialDescriptor);
+            CECConnect(serialDevice);
             break;
         case 'D':
-            CECDisconnect(serialDescriptor);
+            CECDisconnect(serialDevice);
             break;
         case 'F':
-            firmwareUpdate(serialDescriptor, optarg);
+            firmwareUpdate(serialDevice, optarg);
             break;
         case 'd':
-            connectToDevice(&serialDescriptor, optarg);
+            connectToDevice(&serialDevice, optarg, &previousSettings);
             break;
         case 'q':
-            printInquiry(serialDescriptor);
+            printInquiry(serialDevice);
             break;
         case 'r':
-            writeEDIDToFile(serialDescriptor, currentPosition, optarg);
+            writeEDIDToFile(serialDevice, currentPosition, optarg);
             break;
         case 's':
-            selectSet(serialDescriptor, &currentPosition, optarg);
+            selectSet(serialDevice, &currentPosition, optarg);
             break;
         case 'w':
-            writeEDIDToDevice(serialDescriptor, currentPosition, optarg);
+            writeEDIDToDevice(serialDevice, currentPosition, optarg);
             break;
         case '?':
         default:
@@ -355,8 +355,8 @@ int main(int argc, char * const argv[])
         usage();
         exit(1);
     }
-    if (serialDescriptor != -1)
-        serialClosePort(serialDescriptor);      // dismiss errors
+    if (serialDevice != -1)
+        serialClosePort(serialDevice, &previousSettings);       // dismiss errors
 
     return 0;
 }

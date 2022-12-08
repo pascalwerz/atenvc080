@@ -18,94 +18,111 @@
 
 
 
-static struct termios gOriginalTTYAttrs;
-
-serial_status_t serialOpenPort(int * serialDescriptor, const char * path)
+serial_status_t serialOpenPort(serial_t * serialDevice, const char * path, struct termios * previousSettings)
 {
     int handshake;
     struct termios options;
 
-    *serialDescriptor = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (*serialDescriptor == -1)
+    *serialDevice = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (*serialDevice == -1)
         goto error;
 
-    if (ioctl(*serialDescriptor, TIOCEXCL) == -1)
+    if (ioctl(*serialDevice, TIOCEXCL) == -1)
         goto error;
 
-    if (fcntl(*serialDescriptor, F_SETFL, 0) == -1)
+    if (fcntl(*serialDevice, F_SETFL, 0) == -1)
         goto error;
 
-    if (tcgetattr(*serialDescriptor, &gOriginalTTYAttrs) == -1)
+    if (previousSettings != NULL)
+    {
+        if (tcgetattr(*serialDevice, previousSettings) == -1)
+            goto error;
+    }
+
+    if (tcgetattr(*serialDevice, &options) == -1)
         goto error;
 
-    options = gOriginalTTYAttrs;
     cfmakeraw(&options);
     options.c_cc[VMIN] = 0;
     options.c_cc[VTIME] = 1;
 
-    cfsetspeed(&options, B115200);      // Set 115200 b/s
-    options.c_cflag |= CS8 | CLOCAL;             // Use 8 bit words
+    cfsetispeed(&options, B9600);               // Set default input speed
+    cfsetospeed(&options, B9600);               // Set default output speed
+    options.c_cflag |= CS8 | CLOCAL;            // Use 8 bit words, ignore modem control lines
 
-//    speed_t speed = 115200;             // Set 115200 b/s
-//    if (ioctl(*serialDescriptor, IOSSIOSPEED, &speed) == -1)
-//        goto error;
-
-    if (tcsetattr(*serialDescriptor, TCSANOW, &options) == -1)
+    if (tcsetattr(*serialDevice, TCSANOW, &options) == -1)
         goto error;
 
     handshake = TIOCM_DTR | TIOCM_RTS | TIOCM_CTS | TIOCM_DSR;
-    if (ioctl(*serialDescriptor, TIOCMSET, &handshake) == -1)
+    if (ioctl(*serialDevice, TIOCMSET, &handshake) == -1)
         goto error;
 
     return serialOK;
 
 error:
-    if (*serialDescriptor != -1)
-        close(*serialDescriptor);
+    if (*serialDevice != -1)
+        close(*serialDevice);
 
-    *serialDescriptor = -1;
+    *serialDevice = -1;
 
     return serialError;
 }
 
 
 
-serial_status_t serialClosePort(int serialDescriptor)
+serial_status_t serialClosePort(serial_t serialDevice, const struct termios * previousSettings)
 {
     // Block until all written output has been sent from the device.
     // Note that this call is simply passed on to the serial device driver.
     // See tcsendbreak(3) <x-man-page://3/tcsendbreak> for details.
-    tcdrain(serialDescriptor);
+    tcdrain(serialDevice);
 
     // Traditionally it is good practice to reset a serial port back to
     // the state in which you found it. This is why the original termios struct
     // was saved.
-    tcsetattr(serialDescriptor, TCSANOW, &gOriginalTTYAttrs);
+    if (previousSettings != NULL)
+        tcsetattr(serialDevice, TCSANOW, previousSettings);
 
-    close(serialDescriptor);
+    close(serialDevice);
 
     return serialOK;
 }
 
 
 
-serial_status_t serialSetRate(int serialDescriptor, unsigned long rate)
+serial_status_t serialSetRate(serial_t serialDevice, unsigned long inputRate, unsigned long outputRate)
 {
-    speed_t speed = (speed_t) rate;
+#if 0
+    speed_t ispeed = (speed_t) inputRate;
+    speed_t ospeed = (speed_t) outputRate;
 
-    if (ioctl(serialDescriptor, IOSSIOSPEED, &speed) == -1)
+
+    if (ioctl(serialDevice, IOSSIOSPEED, &ispeed) == -1)
+        return serialError;
+#else
+    struct termios options;
+
+
+    if (tcgetattr(serialDevice, &options) == -1)
         return serialError;
 
+    cfsetispeed(&options, inputRate);               // Set default input speed
+    cfsetospeed(&options, outputRate);              // Set default output speed
+
+    if (tcsetattr(serialDevice, TCSANOW, &options) == -1)
+        return serialError;
+#endif
+
     return serialOK;
 }
 
 
 
-serial_status_t serialSetRTS(int serialDescriptor, int state)
+serial_status_t serialSetRTS(int serialDevice, int state)
 {
     int handshake;
 
-    if (ioctl(serialDescriptor, TIOCMGET, &handshake) == -1)
+    if (ioctl(serialDevice, TIOCMGET, &handshake) == -1)
         return serialError;
 
     if (state)
@@ -113,7 +130,7 @@ serial_status_t serialSetRTS(int serialDescriptor, int state)
     else
         handshake &= ~TIOCM_RTS;
 
-    if (ioctl(serialDescriptor, TIOCMSET, &handshake) == -1)
+    if (ioctl(serialDevice, TIOCMSET, &handshake) == -1)
         return serialError;
 
     return serialOK;
@@ -121,12 +138,12 @@ serial_status_t serialSetRTS(int serialDescriptor, int state)
 
 
 
-size_t serialPendingBytesCount(int serialDescriptor)
+size_t serialPendingBytesCount(int serialDevice)
 {
     int count;
 
     
-    if (ioctl(serialDescriptor, FIONREAD, &count) == -1)
+    if (ioctl(serialDevice, FIONREAD, &count) == -1)
         return 0;
 
     if (count < 0)
@@ -137,16 +154,16 @@ size_t serialPendingBytesCount(int serialDescriptor)
 
 
 
-int serialReadByte(int serialDescriptor)
+int serialReadByte(int serialDevice)
 {
     uint8_t byte;
     size_t byteCount;
 
 
-    if (serialPendingBytesCount(serialDescriptor) < 1)
+    if (serialPendingBytesCount(serialDevice) < 1)
         return  -1;
 
-    byteCount = read(serialDescriptor, &byte, 1);
+    byteCount = read(serialDevice, &byte, 1);
     if (byteCount < 1)
         return -1;
 
@@ -155,14 +172,14 @@ int serialReadByte(int serialDescriptor)
 
 
 
-serial_status_t serialReadBytes(int serialDescriptor, uint8_t * bytes, size_t byteCount)
+serial_status_t serialReadBytes(int serialDevice, uint8_t * bytes, size_t byteCount)
 {
     size_t readBytes;
 
 
     while (byteCount > 0)
     {
-        readBytes = read(serialDescriptor, bytes, byteCount);
+        readBytes = read(serialDevice, bytes, byteCount);
         if (readBytes > 0)
         {
             byteCount -= readBytes;
@@ -175,9 +192,9 @@ serial_status_t serialReadBytes(int serialDescriptor, uint8_t * bytes, size_t by
 
 
 
-size_t serialReadPendingBytes(serial_t serialDescriptor, uint8_t * bytes, size_t maxByteCount)
+size_t serialReadPendingBytes(serial_t serialDevice, uint8_t * bytes, size_t maxByteCount)
 {
-    size_t byteCount = serialPendingBytesCount(serialDescriptor);
+    size_t byteCount = serialPendingBytesCount(serialDevice);
 
     if (byteCount <= 0)
         return 0;
@@ -185,7 +202,7 @@ size_t serialReadPendingBytes(serial_t serialDescriptor, uint8_t * bytes, size_t
     if (byteCount > maxByteCount)
         byteCount = maxByteCount;
 
-    if (serialReadBytes(serialDescriptor, bytes, byteCount) != serialOK)
+    if (serialReadBytes(serialDevice, bytes, byteCount) != serialOK)
         return 0;
 
     return byteCount;
@@ -193,9 +210,23 @@ size_t serialReadPendingBytes(serial_t serialDescriptor, uint8_t * bytes, size_t
 
 
 
-serial_status_t serialWriteByte(int serialDescriptor, uint8_t byte)
+serial_status_t serialClearPendingBytes(serial_t serialDevice)
 {
-    if (write(serialDescriptor, &byte, 1) != 1)
+    uint8_t dummy[256];
+
+
+    while (serialPendingBytesCount(serialDevice))
+        if (serialReadPendingBytes(serialDevice, dummy, sizeof(dummy)) != serialOK)
+            return serialError;
+
+    return serialOK;
+}
+
+
+
+serial_status_t serialWriteByte(int serialDevice, uint8_t byte)
+{
+    if (write(serialDevice, &byte, 1) != 1)
         return serialError;
 
     return serialOK;
@@ -203,9 +234,9 @@ serial_status_t serialWriteByte(int serialDescriptor, uint8_t byte)
 
 
 
-serial_status_t serialWriteBytes(int serialDescriptor, uint8_t * bytes, size_t byteCount)
+serial_status_t serialWriteBytes(int serialDevice, uint8_t * bytes, size_t byteCount)
 {
-    if (write(serialDescriptor, bytes, byteCount) != byteCount)
+    if (write(serialDevice, bytes, byteCount) != byteCount)
         return serialError;
 
     return serialOK;
