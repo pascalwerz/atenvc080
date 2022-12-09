@@ -422,7 +422,7 @@ int atenUpdateFirmware(int serialDevice, uint8_t * data, size_t length)
     if (atenGetFirmwareModeReply(serialDevice, reply, 50) != ATEN_NO_ERROR)
         goto writeError;
     if (reply[2] != (command90[2] ^ 0x80) || reply[3] != command90[3] || memcmp(reply + 4, "VC060/080", 9))
-        goto writeError;
+        goto readError;
     printf("Device status before upgrade:\n");
     printf("         CPU is: %.7s\n", reply + 42);
     printf("   firmware was: v%c.%c.%c%c%c\n", reply[28], reply[29], reply[31], reply[32], reply[33]);
