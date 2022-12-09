@@ -289,9 +289,13 @@ void firmwareUpdate(serial_t serialDevice, char * path)
         break;
 
     case ATEN_READ_ERROR:
-        printf("Failed. Is device in firmware update mode?\n");
-        printf("Keep SELECT/LEARN button pressed while powering on EDID emulator,\n");
-        printf("The DEFAULT LED will flash.\n");
+        printf("Firmware update failed.\n");
+        printf("Is EDID emulator in firmware update mode?\n");
+        break;
+
+    case ATEN_INVALID:
+        printf("%s: not a valid firmware file\n", path);
+        printf("Is it still scrambled?\n");
         break;
 
     default:
