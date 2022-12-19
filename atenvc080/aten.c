@@ -16,6 +16,9 @@
 int edidVerifyChecksum(uint8_t edid[ATEN_MAX_EDID_SIZE])
 {
     int blockCount = 1 + edid[ATEN_EXTENSION_COUNT_OFFSET];
+    int result = ATEN_NO_ERROR;
+    uint8_t foundChecksum;
+
 
     for (int block = 0; block < blockCount; block++)
     {
@@ -23,14 +26,18 @@ int edidVerifyChecksum(uint8_t edid[ATEN_MAX_EDID_SIZE])
         size_t i;
 
 
-        for (i = 0; i < ATEN_BLOCK_SIZE; i++)
+        for (i = 0; i < ATEN_BLOCK_SIZE - 1; i++)
             sum += edid[block * ATEN_BLOCK_SIZE + i];
 
-        if (sum != 0)
-            return ATEN_INVALID;
+        foundChecksum = edid[block * ATEN_BLOCK_SIZE + ATEN_BLOCK_SIZE - 1];
+        if (sum != 0x100 - edid[block * ATEN_BLOCK_SIZE + ATEN_BLOCK_SIZE - 1])
+        {
+            fprintf(stderr, "At EDID offset 0x%02x, found checksum 0x%02x, expected 0x%02x.\n", block * ATEN_BLOCK_SIZE + ATEN_BLOCK_SIZE - 1, foundChecksum, 0x100 - sum);
+            result = ATEN_INVALID;
+        }
     }
 
-    return ATEN_NO_ERROR;
+    return result;
 }
 
 
