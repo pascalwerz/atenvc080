@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <IOKit/serial/ioss.h>
 #include <time.h>
+#include <sys/select.h>
 
 
 
@@ -43,8 +44,11 @@ serial_status_t serialOpenPort(serial_t * serialDevice, const char * path, struc
         goto error;
 
     cfmakeraw(&options);
+    // In noncanonical mode, if VMIN == 0 and VTIME == 0:
+    // - if data is available, read(2) returns immediately, with the lesser of the number of bytes available, or the number of bytes requested.
+    // - If no data is available, read(2) returns 0
     options.c_cc[VMIN] = 0;
-    options.c_cc[VTIME] = 1;
+    options.c_cc[VTIME] = 0;
 
     cfsetispeed(&options, B9600);               // Set default input speed
     cfsetospeed(&options, B9600);               // Set default output speed
@@ -240,6 +244,23 @@ serial_status_t serialWriteBytes(int serialDevice, uint8_t * bytes, size_t byteC
         return serialError;
 
     return serialOK;
+}
+
+
+
+size_t serialWaitForAvailableBytes(serial_t serialDevice, uintmax_t milliseconds)
+{
+    fd_set set;
+    struct timeval tv;
+
+
+    FD_ZERO(&set);
+    FD_SET(serialDevice, &set);
+    tv.tv_sec = milliseconds / 1000;
+    tv.tv_usec = (milliseconds % 1000) * 1000;
+    select(serialDevice + 1, &set, NULL, NULL, &tv);    // ignore return status
+
+    return serialPendingBytesCount(serialDevice);
 }
 
 

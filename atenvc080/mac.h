@@ -38,6 +38,7 @@ size_t serialReadPendingBytes(serial_t serialDevice, uint8_t * bytes, size_t max
 serial_status_t serialClearPendingBytes(serial_t serialDevice);
 serial_status_t serialWriteByte(serial_t serialDevice, uint8_t byte);
 serial_status_t serialWriteBytes(serial_t serialDevice, uint8_t * bytes, size_t byteCount);
+size_t serialWaitForAvailableBytes(serial_t serialDevice, uintmax_t milliseconds);
 
 void pauseMilliseconds(unsigned long milliSeconds);
 
