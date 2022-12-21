@@ -368,21 +368,20 @@ int atenGetFirmwareModeReply(int serialDevice, uint8_t * reply, size_t byteCount
 
 
 
-// work in progress
 int atenUpdateFirmware(int serialDevice, uint8_t * data, size_t length)
 {
     uint16_t expectedSum;
     uint16_t sum;
     uint8_t reply[256];
     // command size is +1 for the checksum that will be computed in atenSendFirmwareModeCommand()
-    uint8_t commandff[ 5 + 1] = { 'F', 'U', 0xff, 'E', 'N' };
-    uint8_t command80[27 + 1] = { 'F', 'U', 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-    uint8_t command90[ 6 + 1] = { 'F', 'U', 0x90, 0x00, 0x44, 0x49 };
-    uint8_t commanda0[ 6 + 1] = { 'F', 'U', 0xa0, 0x00, 0x43, 0x54 };
-    uint8_t commanda2[68 + 1] = { 'F', 'U', 0xa2, 0x00 };
-    uint8_t commanda3[70 + 1] = { 'F', 'U', 0xa3, 0x00, 0x00, 0x00 };
-    uint8_t commanda4[ 6 + 1] = { 'F', 'U', 0xa4, 0x00, 0x44, 0x54 };
-    uint8_t commanda5[ 6 + 1] = { 'F', 'U', 0xa5, 0xff, 0x41, 0x44 };
+    uint8_t commandFU_ff_EN[ 5 + 1] = { 'F', 'U', 0xff, 'E', 'N' };
+    uint8_t commandFU_80[27 + 1] = { 'F', 'U', 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    uint8_t commandFU_90_DI[ 6 + 1] = { 'F', 'U', 0x90, 0x00, 'D', 'I' };
+    uint8_t commandFU_a0_CT[ 6 + 1] = { 'F', 'U', 0xa0, 0x00, 'C', 'T' };
+    uint8_t commandFU_a2[68 + 1] = { 'F', 'U', 0xa2, 0x00 };
+    uint8_t commandFU_a3[70 + 1] = { 'F', 'U', 0xa3, 0x00, 0x00, 0x00 };
+    uint8_t commandFU_a4_DT[ 6 + 1] = { 'F', 'U', 0xa4, 0x00, 'D', 'T' };
+    uint8_t commandFU_a5_AD[ 6 + 1] = { 'F', 'U', 0xa5, 0xff, 'A', 'D' };
 
 
     if (length != ATEN_FIRMWARE_SIZE_1 + ATEN_FIRMWARE_SIZE_2 + 2)
@@ -407,74 +406,74 @@ int atenUpdateFirmware(int serialDevice, uint8_t * data, size_t length)
     pauseMilliseconds(100);
     serialClearPendingBytes(serialDevice);      // purge serial input buffer, dismiss errors
 
-    if (atenSendFirmwareModeCommand(serialDevice, commandff, sizeof(commandff)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_ff_EN, sizeof(commandFU_ff_EN)) != ATEN_NO_ERROR)
         goto writeError;
     pauseMilliseconds(1000);
     if (serialPendingBytesCount(serialDevice) < 1)
         goto readError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 32) != ATEN_NO_ERROR)
         goto readError;
-    if (reply[2] != (commandff[2] ^ 0x80))
+    if (reply[2] != (commandFU_ff_EN[2] ^ 0x80))
         goto readError;
 
-    if (atenSendFirmwareModeCommand(serialDevice, command80, sizeof(command80)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_80, sizeof(commandFU_80)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 5) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (command80[2] ^ 0x80) || reply[3] != command80[3])
+    if (reply[2] != (commandFU_80[2] ^ 0x80) || reply[3] != commandFU_80[3])
         goto writeError;
 
-    if (atenSendFirmwareModeCommand(serialDevice, command90, sizeof(command90)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_90_DI, sizeof(commandFU_90_DI)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 50) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (command90[2] ^ 0x80) || reply[3] != command90[3] || memcmp(reply + 4, "VC060/080", 9))
+    if (reply[2] != (commandFU_90_DI[2] ^ 0x80) || reply[3] != commandFU_90_DI[3] || memcmp(reply + 4, "VC060/080", 9))
         goto readError;
     printf("Device status before upgrade:\n");
     printf("         CPU is: %.7s\n", reply + 42);
     printf("   firmware was: v%c.%c.%c%c%c\n", reply[28], reply[29], reply[31], reply[32], reply[33]);
     printf("  microcode was: v%c.%c.%c%c%c\n", reply[35], reply[36], reply[38], reply[39], reply[40]);
 
-    if (atenSendFirmwareModeCommand(serialDevice, commanda0, sizeof(commanda0)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_a0_CT, sizeof(commandFU_a0_CT)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 6) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (commanda0[2] ^ 0x80) || reply[3] != commanda0[3] || reply[4] != 0x00)
+    if (reply[2] != (commandFU_a0_CT[2] ^ 0x80) || reply[3] != commandFU_a0_CT[3] || reply[4] != 0x00)
         goto writeError;
 
-    memcpy(commanda2 + 4, data, ATEN_FIRMWARE_SIZE_1);
-    if (atenSendFirmwareModeCommand(serialDevice, commanda2, sizeof(commanda2)) != ATEN_NO_ERROR)
+    memcpy(commandFU_a2 + 4, data, ATEN_FIRMWARE_SIZE_1);
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_a2, sizeof(commandFU_a2)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 6) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (commanda2[2] ^ 0x80) || reply[3] != commanda2[3] || reply[4] != 0x00)
+    if (reply[2] != (commandFU_a2[2] ^ 0x80) || reply[3] != commandFU_a2[3] || reply[4] != 0x00)
         goto writeError;
 
     for (size_t offset = 0; offset < ATEN_FIRMWARE_SIZE_2; offset += 64)
     {
-        commanda3[4] = (offset / 64) >> 8;
-        commanda3[5] = (offset / 64);
-        memcpy(commanda3 + 6, data + ATEN_FIRMWARE_SIZE_1 + offset, 64);
-        if (atenSendFirmwareModeCommand(serialDevice, commanda3, sizeof(commanda3)) != ATEN_NO_ERROR)
+        commandFU_a3[4] = (offset / 64) >> 8;
+        commandFU_a3[5] = (offset / 64);
+        memcpy(commandFU_a3 + 6, data + ATEN_FIRMWARE_SIZE_1 + offset, 64);
+        if (atenSendFirmwareModeCommand(serialDevice, commandFU_a3, sizeof(commandFU_a3)) != ATEN_NO_ERROR)
             goto writeError;
         if (atenGetFirmwareModeReply(serialDevice, reply, 8) != ATEN_NO_ERROR)
             goto writeError;
-        if (reply[2] != (commanda3[2] ^ 0x80) || reply[3] != commanda3[3] || reply[4] != (commanda3[4]) || reply[5] != commanda3[5] || reply[6] != 0x00)
+        if (reply[2] != (commandFU_a3[2] ^ 0x80) || reply[3] != commandFU_a3[3] || reply[4] != (commandFU_a3[4]) || reply[5] != commandFU_a3[5] || reply[6] != 0x00)
             goto writeError;
     }
 
-    if (atenSendFirmwareModeCommand(serialDevice, commanda4, sizeof(commanda4)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_a4_DT, sizeof(commandFU_a4_DT)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 6) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (commanda4[2] ^ 0x80) || reply[3] != commanda4[3] || reply[4] != 0x00)
+    if (reply[2] != (commandFU_a4_DT[2] ^ 0x80) || reply[3] != commandFU_a4_DT[3] || reply[4] != 0x00)
         goto writeError;
 
-    if (atenSendFirmwareModeCommand(serialDevice, commanda5, sizeof(commanda5)) != ATEN_NO_ERROR)
+    if (atenSendFirmwareModeCommand(serialDevice, commandFU_a5_AD, sizeof(commandFU_a5_AD)) != ATEN_NO_ERROR)
         goto writeError;
     if (atenGetFirmwareModeReply(serialDevice, reply, 6) != ATEN_NO_ERROR)
         goto writeError;
-    if (reply[2] != (commanda5[2] ^ 0x80) || reply[3] != 0x00 || reply[4] != 0x00)
+    if (reply[2] != (commandFU_a5_AD[2] ^ 0x80) || reply[3] != 0x00 || reply[4] != 0x00)
         goto writeError;
 
     int status = ATEN_NO_ERROR;
