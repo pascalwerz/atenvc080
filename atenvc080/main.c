@@ -3,7 +3,7 @@
 //  atenvc080
 //
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 
 #include "mac.h"
 #include "aten.h"
@@ -50,10 +50,10 @@ void usage(void)
     printf("                                or similar switches may return a modified\n");
     printf("                                display EDID\n");
     printf("       -r path       read selected set, write it to EDID file at path\n");
-    printf("       -w path       read EDID file at path and write it to selected set\n");
+    printf("       -w path       read EDID file at path and write it to selected device set\n");
     printf("       -C            CEC connect\n");
     printf("       -D            CEC disconnect\n");
-    printf("       -F path       Update device with firmware at path\n");
+    printf("       -F path       update device with firmware file at path\n");
     printf("       -?            print this help\n");
 }
 
